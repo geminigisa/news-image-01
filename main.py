@@ -14,7 +14,7 @@ from pathlib import Path
 
 def main():
     asset = Path(__file__).resolve().parent / "entry-news-v2.png"
-    out_dir = Path(os.environ["MAKEFUN_OUTPUT_DIR"])
+    out_dir = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "/output"))
     out_dir.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(asset, out_dir / "entry.png")
 
