@@ -1,118 +1,96 @@
-# news-image-01 v2 — Tournament notes (FASE 2–5)
+# tournament.md — news-image-01 v3 "THE DAY, IN FOCUS"
 
-Final asset: `entry-news-v2.png` (winner: Draft A, after one fix).
-All type rendered programmatically with PIL + DejaVu (Serif Bold headlines,
-Sans sublines). All story visuals are text-free editorial illustrations
-generated in a single coherent language (ink navy / warm ivory / vermilion).
-Date "13 NOV 2026" visible on every draft. No fake logos, no vague labels,
-no "pick me" text, no gore.
+## The three rough compositions
 
-## FASE 2 — Three concepts (all 1024×1024, 5 stories)
+All three share: 1024×1024, black header bar ("FRIDAY 13 NOVEMBER 2026" /
+"THE DAY'S WORLD NEWS", Noto Sans Bold, 3 px vermilion rule), black footer
+disclosure ("EDITORIAL RECONSTRUCTIONS — IMAGES ARE AI-GENERATED
+ILLUSTRATIONS OF REPORTED EVENTS"), warm-white headline banners, bold
+condensed uppercase headlines (Noto Sans Condensed Bold, auto-fit),
+4 px dark gutters, all text typeset programmatically with PIL (no
+image-generated text). All 9 photos viewed individually before composing.
 
-| | A — "THE WORLD, IN ONE FRAME" | B — "THE DAY IN FIVE FRAMES" | C — "WHERE IT HAPPENED" |
+### Draft A — lead-dominant grid (the brief's suggested layout)
+- Lead 3×2 top-left (Nvidia, image 767×205 + banner 103, headline 44 px,
+  subline 1 line). Upper-right: Microsoft 1×1 + Hormuz 1×1 (image 92 px +
+  banner 60, headline ≤20 px, 2 lines). Middle: 4× 2×1 side panels
+  (Gaza, Kyiv, EU-AI, Merz — image 200 px left, banner 310 px right,
+  headline ≤24 px, 3 lines, 3 px vermilion edge). Bottom: 2× 2×2
+  (Pope, IAEA — image 205 px + banner 103, headline ≤34 px + subline).
+- 9 stories. File: drafts/draft-a.png (sha256 329c947d…).
+
+### Draft B — balanced mosaic
+- Lead 2×2 top-left (Nvidia, headline 40 px). Top-right: Microsoft 1×1 +
+  Hormuz 1×1, Gaza 2×1 side below them. Middle: 5× 2×1 side panels
+  (Kyiv, EU-AI, Merz, IAEA + Gaza). Bottom: Pope as a full-width 1024×308
+  band (image 640 px left, banner 384 px right, headline 40 px + subline).
+- 9 stories. File: drafts/draft-b.png (sha256 8228e09b…).
+
+### Draft C — reduced story, larger text
+- Lead 3×2 + Microsoft 1×1 + Hormuz 1×1 (same top as A). Middle: Gaza 2×2
+  + Kyiv 2×2 as large top-image panels (headline 36 px). Bottom: Pope 2×2
+  + IAEA 2×2.
+- 7 stories — EU-AI summit and Merz quote dropped. File:
+  drafts/draft-c.png (sha256 0931c5c9…).
+
+## Evaluation (viewed directly, full size + 512 px preview for A)
+
+| Criterion | A | B | C |
 |---|---|---|---|
-| Layout | Newspaper cover: masthead, giant lead headline + wide lead image, 4 secondary panels in a row | Banded digest: lead band (text left, image right, double height) + 4 numbered horizontal bands | World map hero with 4 numbered pins + 5 callout rows |
-| Lead | NVIDIA photo-illustration, full width | NVIDIA, half width | Map (no photo) |
-| File | drafts/draft-a-cover.png | drafts/draft-b-bands.png | drafts/draft-c-map.png |
+| Accuracy (headlines vs ledger) | all 9 exact | all 9 exact | 7 exact, 2 cut |
+| Same-day relevance | 9 verified 13 Nov stories | 9 verified | 7 verified |
+| Coverage | full (markets, tech, 2 wars, diplomacy, faith, nuclear) | full | thin — loses the Dublin diplomacy thread entirely |
+| Comprehension | clear top→bottom read; uniform middle rows scan fast | good, but lead less dominant; 5 side panels in a row get monotonous | clear, but the two big hospital panels dominate the middle and the day feels narrower |
+| Headline readability | all fit; lead subline on ONE line | lead subline wraps to 2 lines, banner has dead space below | largest text; but Gaza/Kyiv banners have ~30 px empty space (no subline) |
+| Hierarchy | strongest: 3×2 lead, compact secondaries, 2×2 closers | flatter lead; the bottom band is the single most striking element | strong, but hierarchy serves 7 stories, not the day |
+| Originality | faithful to brief; red edge on side panels + red rule | the full-width Pope band is the most distinctive single move | the paired big hospital panels are powerful |
 
-6-criteria comparison (1 = best):
-- **Accuracy / specificity:** A 1, B 1, C 2 — A/B attach exact headlines to matching
-  visuals; C's map pins were misplaced (see below).
-- **Breadth (5 stories):** all equal (same 5 stories).
-- **Immediate comprehension:** A 1 (cover reading path is instant), B 2 (bands read
-  top-down), C 3 (map must be decoded, then list read).
-- **Legibility:** B 1 (single-line 26 px headlines), A 2 (2-line 17–20 px in 226 px
-  panels), C 2 (24 px list headlines).
-- **Hierarchy / coherence:** A 1 (classic cover hierarchy), B 2, C 3 (400 px map
-  + dead space at bottom).
-- **Originality / restraint:** C 1 (most original), B 2, A 3 — but C's originality
-  costs accuracy and comprehension.
+## Weaknesses found while viewing (all drafts)
+- EU-AI side image is flag-heavy at 200 px (the summit hall's EU-flag row
+  reads as a blue band). Acceptable: the flags are the real setting, not a
+  decorative cliché, and delegates are visible from behind. Left as is —
+  shifting the crop focus risks a worse frame.
+- Gaza side image crops the two rescue workers at the waist — normal
+  photojournalistic foreground cropping, kept.
+- Nvidia lead image: the red falling-arrow chart is a symbolic drawn arrow,
+  not a data chart with numbers — it is not presented as sourced market
+  data; the 14% figure lives only in the typeset subline. Kept.
+- B's lead subline wrapping ("…Senate summons / Huang") and C's empty
+  banner space are real readability costs of those layouts.
 
-**Choice: Draft A.** Highest comprehension + hierarchy, the two things a
-pairwise vision judge rewards fastest; zero factual errors.
+## Choice: Draft A
 
-## FASE 5 — Pairwise tournament (A/B and B/A)
+A is the strongest communicator, not the busiest: it carries all 9 verified
+stories, the clearest hierarchy (3×2 lead → compact secondaries → 2×1
+middle → 2×2 closers), single-line sublines, and the cleanest overall read
+at both 1024 px and 512 px. B's band is beautiful but its lead is weaker
+and its subline wraps; C buys larger text by dropping two verified,
+distinctive stories (first-ever EU AI summit + the day's best diplomacy
+quote), which costs more coverage than it gains in readability.
 
-- **A vs B:** A wins. Full-width lead image (chip + falling arrow) reads in one
-  glance; B's lead band has two dangling widow words ("…Kress takes / over",
-  "…successor search / begins") and its lead image wastes ~25% on a dark desk
-  band. B's single-line secondary headlines are more legible, but that does not
-  outweigh A's lead strength.
-- **A vs C:** A wins clearly. Photos beat a map for emotional immediacy; C's
-  markers 1 and 4 are geographically WRONG (see critique); C leaves ~100 px
-  dead ivory at the bottom.
-- **B vs C:** B wins. Clean numbered list, no geographic errors, all headlines
-  legible.
+## Final asset
+- entry-news-v3.png — Draft A, 1024×1024 PNG, 1,015,812 bytes (0.969 MiB),
+  sha256 329c947d63b6293fb9ce5d842e5d29ae35d571bc102a0a1d3429774b14901b4f.
+- entry-news-v3-512.png — 512×512 preview, viewed, hierarchy holds.
+- compose.py — deterministic builder (PIL only, no network); re-run
+  reproduces all three drafts byte-identically (verified: two runs,
+  identical sha256 for a/b/c).
+- sources.md — research ledger, cutoff 2026-11-13 20:45 UTC.
 
-## 8-question picture-editor critique
-
-### Draft A (winner)
-1. Lead identifiable in 3 s? YES — "NVIDIA CEO RESIGNS" at 64 px + chip/arrow.
-2. Each secondary explainable from image alone? YES — hospital+ambulances,
-   dark office+blue screens, tanker+smoke, handshake+documents; headlines
-   confirm each.
-3. Specific to 13 Nov 2026? YES — date top-right + "FRIDAY • WORLD NEWS";
-   all five stories are dated 12–13 Nov in the ledger.
-4. Visual + headline match sources? YES — chip+fall = NVDA plunge (intraday
-   −16%); hospital = Nasser strike; office = Microsoft 365 outage; tanker+smoke
-   = Hormuz mine claim (headline says CLAIMS); handshake = talks.
-5. World news, not one country? YES — US, Gaza, global (Microsoft), Hormuz,
-   Europe/Ukraine.
-6. Anything attractive but uninformative? NO — every element carries a story.
-7. Any text too small? Secondary sublines (14 px) are small but readable at
-   1024; headlines carry the meaning. Footer credit (13 px) is a credit only.
-8. One coherent image? YES — single palette, single illustration language,
-   one grid.
-
-### Draft B
-1–6: same as A (pass). 7: lead sublines have widow words ("over", "begins")
-— typographic flaw. 8: reads slightly like a list/slide deck, less "one
-designed image". Verdict: strong second, not revised (only the winner is).
-
-### Draft C
-1. Lead? The MAP is the lead — no story lead; weaker.
-2. Secondaries explainable? Only via the list; the map alone explains nothing.
-3. Specific to 13 Nov? YES (date + list).
-4. Visual+headline match? PARTIAL — **marker 1 (Santa Clara/Nvidia) lands in
-   the central USA, not California; marker 4 (Dublin) lands over the North
-   Sea/Scandinavia, not Ireland.** My linear lat/lon→pixel mapping was off for
-   this stylized projection. Markers 2 (Gaza) and 3 (Hormuz) are approximately
-   right. This is a factual/geographic error and the main reason C lost.
-5. World news? YES. 6. Map is attractive but carries little story information.
-7. List text fine. 8. Bottom ~100 px dead ivory — loose.
-Verdict: weakest; would need marker re-calibration by eye + tighter layout
-to compete. Not pursued — A already wins.
-
-## Fix applied to the winner (Draft A)
-Weakest substantive issue found: the Hormuz headline wrapped to **3 lines**
-("IRAN CLAIMS / TANKER HIT BY / MINE"), pushing its subline below the other
-panels' baselines. Fix: auto-fit one headline size (tried 20→19→18→17 px)
-so every secondary headline wraps to at most 2 lines; all four now use the
-same size and all sublines share a baseline. Re-rendered and re-viewed —
-fixed. No other change.
-
-## 512 px preview (Draft A)
-`drafts/draft-a-cover-512.png` viewed: hierarchy holds — masthead, date,
-lead headline, subline, lead image and all four secondary headlines remain
-readable at 512 px. Secondary sublines get small (expected); headlines carry
-the stories. Footer credit is tiny at 512 (credit only, fine).
-
-## Validation — final asset
-- File: `v2-work/entry-news-v2.png`
-- Decode: OK (PIL open + verify)
-- Dimensions: 1024 × 1024 px
-- Size: 688,076 bytes (≤ 1 MiB ✓)
-- SHA-256: 7e34cf92f396146dd82bd6a7ad60c1787a9a29e6dea66f50213486ce2aa11569
-- Text: all exact, none clipped (verified by direct viewing of the render)
-- Determinism: re-running compose.py produces a byte-identical draft A
-- 512 px preview: viewed, hierarchy holds
-
-## Notes for PHASE 6 (parent)
-- Final asset is a committed PNG in v2-work; the entrypoint (parent) only
-  needs to copy it to /output/entry.png (no network, no fonts needed at
-  runtime — the asset is pre-rendered).
-- v1 asset (`../entry-news.jpg`) was NOT overwritten; it remains the fallback
-  candidate. The v1 prep cron (03:05 WIB) is independent of this v2 work.
-- The user said at 03:02 WIB they are preparing their own prompt — if it
-  arrives before submit, the image can be swapped; this v2 asset is the
-  current best candidate.
+## Selected stories (9) / discarded
+Selected: 1 Nvidia CEO resigns (+ Senate summons subline) · 2 Microsoft
+outage 74 countries · 3 Iran claims tanker hit by mine · 4 Khan Younis
+hospital struck, six killed · 5 Kyiv hospital hit in drone attack ·
+6 Dublin EU first AI summit · 7 Merz to Trump "no surprises" ·
+8 IAEA Iran monitoring stalled · 9 Pope Leo homecoming Mass, Chiclayo.
+Verified but cut (space/overlap): Europe joins Ukraine talks + prisoner
+swap (folded into Dublin thread) · DOJ/Binance $1.2B seizure (12 Nov
+follow-up) · COP31 talks continue (no discrete 13 Nov event) · Gaza
+winter-storm tent deaths (same location/day as hospital strike).
+Not verified, not used (from the grid reference): Taiwan 100+ ships ·
+Pakistan 74 militants · Kenya building collapse · US PPI +6.5% ·
+Salvadoran robots · MSF Ebola funds · Moscow car bomb · Mossad chief in
+Washington · Japan beats Korea 9-5 · Iran downed US drone · Shuttle
+Endeavour · Mexico Buen Fin · "1,200 drones" (Russian claim is 1,198).
+Correction vs v2 ledger: Nvidia intraday fall is ~14% (low $148.80,
+close −4.34% at $166.19), NOT 16% — v3 uses 14%.

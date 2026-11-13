@@ -1,289 +1,295 @@
 #!/usr/bin/env python3
-"""Compose 3 editorial drafts for news-image-01 v2 (1024x1024, PIL + DejaVu).
-All type is rendered programmatically; generated images carry no text.
-Assets: v2-work/assets/*.webp (1920x1280, 3:2, text-free editorial illustrations).
-Output: v2-work/drafts/draft-{a,b,c}.png
+"""news-image-01 v3 'THE DAY, IN FOCUS' — compose 3 rough compositions.
+
+Deterministic: stdlib + PIL only, no network, no timestamps, no randomness.
+Usage: python3 compose.py [a|b|c|all]
+Outputs: drafts/draft-a.png, draft-b.png, draft-c.png (+ -512.png previews).
 """
 import os
+import sys
 from PIL import Image, ImageDraw, ImageFont
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.join(BASE, "assets")
-OUT = os.path.join(BASE, "drafts")
-os.makedirs(OUT, exist_ok=True)
+DRAFTS = os.path.join(BASE, "drafts")
 
-IVORY = (245, 239, 227)
-NAVY = (27, 42, 74)
-VERMILION = (192, 57, 43)
-SLATE = (74, 84, 106)
+W, H = 1024, 1024
+HEADER_H, FOOTER_H = 64, 28
+GUT = 4
+CELL_W, CELL_H = 253, 152
+
+INK = (20, 20, 20)
+PAPER = (247, 243, 236)
+HEADER_BG = (17, 17, 17)
+RED = (176, 58, 46)
+SUBGREY = (74, 74, 68)
 WHITE = (255, 255, 255)
-PAPER = (250, 246, 236)
 
-SERIF_B = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
-SANS_B = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-SANS = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+FONT_DIR = "/usr/share/fonts/truetype/noto"
+COND_BOLD = os.path.join(FONT_DIR, "NotoSans-CondensedBold.ttf")
+SANS_BOLD = os.path.join(FONT_DIR, "NotoSans-Bold.ttf")
+SANS_REG = os.path.join(FONT_DIR, "NotoSans-Regular.ttf")
+for p in (COND_BOLD, SANS_BOLD, SANS_REG):
+    assert os.path.isfile(p), "missing font: " + p
+
+FILES = {
+    "nvidia": "media-generation-v3-nvidia-0-4ecbc0aa-03e4-48bf-8ff0-104b4ef63f02.webp",
+    "microsoft": "media-generation-v3-microsoft-0-050f5130-7f36-4bf7-95e9-889648f1c8b3.webp",
+    "hormuz": "media-generation-v3-hormuz-0-968b8341-6ead-4762-bfd3-2d4f122b43b9.webp",
+    "gaza": "media-generation-v3-gaza-0-8e0d3aba-b3cf-4c94-acb3-47a77d57d91b.webp",
+    "kyiv": "media-generation-v3-kyiv-0-5a1ed8c2-ae9f-4fb9-8027-75d127070bd3.webp",
+    "euai": "media-generation-v3-euai-0-f6350a61-c2ac-4127-9f8f-1d3667134c83.webp",
+    "merz": "media-generation-v3-merz-0-547071f4-f5d4-48ea-bd52-3cf62c124401.webp",
+    "iaea": "media-generation-v3-iaea-0-549d2f40-2018-4293-a544-f165a02c8244.webp",
+    "pope": "media-generation-v3-pope-0-b2d367fe-9dd5-4772-b44e-b46c37fc7258.webp",
+}
+
+# story: (image key, headline, subline or None, focus_x, focus_y)
+STORIES = {
+    "nvidia": ("nvidia", "NVIDIA CEO RESIGNS",
+               "Shares plunge as much as 14% \u2014 Kress takes over; Senate summons Huang",
+               0.50, 0.62),
+    "microsoft": ("microsoft", "MICROSOFT OUTAGE HITS 74 COUNTRIES", None, 0.50, 0.45),
+    "hormuz": ("hormuz", "IRAN CLAIMS TANKER HIT BY MINE", None, 0.50, 0.48),
+    "gaza": ("gaza", "KHAN YOUNIS: HOSPITAL STRUCK, SIX KILLED", None, 0.50, 0.50),
+    "kyiv": ("kyiv", "KYIV: HOSPITAL HIT IN DRONE ATTACK", None, 0.50, 0.50),
+    "euai": ("euai", "DUBLIN: EU LEADERS HOLD FIRST AI SUMMIT", None, 0.50, 0.50),
+    "merz": ("merz", "MERZ TO TRUMP: \u2018NO SURPRISES\u2019 WITH PUTIN", None, 0.45, 0.50),
+    "iaea": ("iaea", "IAEA: IRAN NUCLEAR MONITORING STALLED",
+            "Inspectors locked out; uranium stockpile unverified", 0.50, 0.40),
+    "pope": ("pope", "CHICLAYO: POPE LEO\u2019S HOMECOMING MASS",
+            "500,000 gather for Mass in Peru", 0.55, 0.50),
+}
+
+_cache = {}
 
 
-def font(path, size):
-    return ImageFont.truetype(path, size)
+def load_image(key):
+    if key not in _cache:
+        _cache[key] = Image.open(os.path.join(ASSETS, FILES[key])).convert("RGB")
+    return _cache[key]
 
 
-def cover(im, w, h, focus=(0.5, 0.5)):
-    """Center-crop (with focus point) + resize to w x h."""
-    iw, ih = im.size
-    target = w / h
-    src = iw / ih
-    if src > target:  # too wide -> crop width
-        nw = int(ih * target)
-        x0 = int((iw - nw) * focus[0])
-        box = (x0, 0, x0 + nw, ih)
-    else:  # too tall -> crop height
-        nh = int(iw / target)
-        y0 = int((ih - nh) * focus[1])
-        box = (0, y0, iw, y0 + nh)
-    return im.crop(box).resize((w, h), Image.LANCZOS)
+def crop_to(img, tw, th, fx=0.5, fy=0.5):
+    """Center-crop (with focus) to target aspect, then resize. Deterministic."""
+    sw, sh = img.size
+    tr = tw / th
+    sr = sw / sh
+    if sr > tr:  # source wider: crop width
+        cw, ch = int(sh * tr), sh
+    else:        # source taller: crop height
+        cw, ch = sw, int(sw / tr)
+    cx = int(fx * sw)
+    cy = int(fy * sh)
+    x0 = min(max(cx - cw // 2, 0), sw - cw)
+    y0 = min(max(cy - ch // 2, 0), sh - ch)
+    return img.crop((x0, y0, x0 + cw, y0 + ch)).resize((tw, th), Image.LANCZOS)
 
 
-def wrap(draw, text, fnt, max_w):
+def wrap(draw, text, font, max_w):
     words = text.split()
     lines, cur = [], ""
     for w in words:
-        t = (cur + " " + w).strip()
-        if draw.textlength(t, font=fnt) <= max_w:
-            cur = t
+        trial = (cur + " " + w).strip()
+        if draw.textlength(trial, font=font) <= max_w or not cur:
+            cur = trial
         else:
-            if cur:
-                lines.append(cur)
+            lines.append(cur)
             cur = w
     if cur:
         lines.append(cur)
     return lines
 
 
-def draw_lines(draw, x, y, lines, fnt, fill, align="left", width=None, spacing=4):
-    """Draw wrapped lines; returns y after last line."""
+def fit_headline(draw, text, start_px, min_px, max_w, max_lines):
+    """Largest condensed-bold size (start..min) whose wrap fits max_lines."""
+    for px in range(start_px, min_px - 1, -1):
+        font = ImageFont.truetype(COND_BOLD, px)
+        lines = wrap(draw, text, font, max_w)
+        if len(lines) <= max_lines:
+            return font, lines
+    font = ImageFont.truetype(COND_BOLD, min_px)
+    return font, wrap(draw, text, font, max_w)
+
+
+def draw_top_panel(page, draw, x, y, w, h, story, img_h, head_px, sub_px=None):
+    key, headline, subline, fx, fy = STORIES[story]
+    img = crop_to(load_image(key), w, img_h, fx, fy)
+    page.paste(img, (x, y))
+    bh = h - img_h
+    draw.rectangle([x, y + img_h, x + w, y + h], fill=PAPER)
+    pad = 12
+    max_w = w - 2 * pad
+    font, lines = fit_headline(draw, headline, head_px, 14, max_w, 2)
+    lh = int(font.size * 1.08)
+    block_h = lh * len(lines)
+    if subline and sub_px:
+        sub_font = ImageFont.truetype(SANS_REG, sub_px)
+        sub_lines = wrap(draw, subline, sub_font, max_w)
+        block_h += 4 + int(sub_px * 1.25) * len(sub_lines)
+    ty = y + img_h + max(6, (bh - block_h) // 2)
     for ln in lines:
-        if align == "center":
-            lx = x + (width - draw.textlength(ln, font=fnt)) / 2
-        else:
-            lx = x
-        draw.text((lx, y), ln, font=fnt, fill=fill)
-        y += fnt.size + spacing
-    return y
+        draw.text((x + pad, ty), ln, font=font, fill=INK)
+        ty += lh
+    if subline and sub_px:
+        ty += 4
+        sub_font = ImageFont.truetype(SANS_REG, sub_px)
+        for ln in wrap(draw, subline, sub_font, max_w):
+            draw.text((x + pad, ty), ln, font=sub_font, fill=SUBGREY)
+            ty += int(sub_px * 1.25)
 
 
-def hline(draw, x0, x1, y, fill=NAVY, w=2):
-    draw.line([(x0, y), (x1, y)], fill=fill, width=w)
+def draw_side_panel(page, draw, x, y, w, h, story, img_w, head_px):
+    key, headline, subline, fx, fy = STORIES[story]
+    img = crop_to(load_image(key), img_w, h, fx, fy)
+    page.paste(img, (x, y))
+    bx = x + img_w
+    bw = w - img_w
+    draw.rectangle([bx, y, x + w, y + h], fill=PAPER)
+    draw.rectangle([bx, y, bx + 3, y + h], fill=RED)
+    pad = 12
+    max_w = bw - pad - 10
+    font, lines = fit_headline(draw, headline, head_px, 14, max_w, 3)
+    lh = int(font.size * 1.08)
+    ty = y + max(8, (h - lh * len(lines)) // 2)
+    for ln in lines:
+        draw.text((bx + pad + 3, ty), ln, font=font, fill=INK)
+        ty += lh
 
 
-def num_badge(draw, cx, cy, n, r=14, fill=VERMILION):
-    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=fill, outline=WHITE, width=2)
-    f = font(SANS_B, 16)
-    t = str(n)
-    tw = draw.textlength(t, font=f)
-    th = f.size
-    draw.text((cx - tw / 2, cy - th / 2 - 1), t, font=f, fill=WHITE)
+def draw_band_panel(page, draw, x, y, w, h, story, img_w, head_px, sub_px):
+    """Full-width bottom band: image left, banner right (variant B pope)."""
+    key, headline, subline, fx, fy = STORIES[story]
+    img = crop_to(load_image(key), img_w, h, fx, fy)
+    page.paste(img, (x, y))
+    bx = x + img_w
+    bw = w - img_w
+    draw.rectangle([bx, y, x + w, y + h], fill=PAPER)
+    draw.rectangle([bx, y, bx + 3, y + h], fill=RED)
+    pad = 16
+    max_w = bw - 2 * pad
+    font, lines = fit_headline(draw, headline, head_px, 16, max_w, 3)
+    lh = int(font.size * 1.08)
+    block_h = lh * len(lines)
+    sub_font = ImageFont.truetype(SANS_REG, sub_px)
+    sub_lines = wrap(draw, subline, sub_font, max_w) if subline else []
+    block_h += 6 + int(sub_px * 1.25) * len(sub_lines)
+    ty = y + max(10, (h - block_h) // 2)
+    for ln in lines:
+        draw.text((bx + pad + 3, ty), ln, font=font, fill=INK)
+        ty += lh
+    ty += 6
+    for ln in sub_lines:
+        draw.text((bx + pad + 3, ty), ln, font=sub_font, fill=SUBGREY)
+        ty += int(sub_px * 1.25)
 
 
-def load(name):
-    return Image.open(os.path.join(ASSETS, name)).convert("RGB")
+def draw_header_footer(draw):
+    draw.rectangle([0, 0, W, HEADER_H], fill=HEADER_BG)
+    date_f = ImageFont.truetype(SANS_BOLD, 22)
+    title_f = ImageFont.truetype(SANS_BOLD, 30)
+    draw.text((16, (HEADER_H - 22) // 2 - 2), "FRIDAY 13 NOVEMBER 2026",
+              font=date_f, fill=WHITE)
+    t = "THE DAY\u2019S WORLD NEWS"
+    draw.text((W - 16 - draw.textlength(t, font=title_f),
+               (HEADER_H - 30) // 2 - 2), t, font=title_f, fill=WHITE)
+    draw.rectangle([0, HEADER_H, W, HEADER_H + 3], fill=RED)
+    fy = H - FOOTER_H
+    draw.rectangle([0, fy, W, H], fill=HEADER_BG)
+    foot_f = ImageFont.truetype(SANS_REG, 11)
+    foot_b = ImageFont.truetype(SANS_BOLD, 11)
+    left = "EDITORIAL RECONSTRUCTIONS \u2014 IMAGES ARE AI-GENERATED ILLUSTRATIONS OF REPORTED EVENTS"
+    draw.text((16, fy + 8), left, font=foot_f, fill=WHITE)
+    r = "13 NOV 2026"
+    draw.text((W - 16 - draw.textlength(r, font=foot_b), fy + 8), r,
+              font=foot_b, fill=WHITE)
 
 
-IMG = {
-    "nvidia": load("media-generation-v2-nvidia-0-e95fea83-a672-43ab-85df-7bb7c5dfa142.webp"),
-    "gaza": load("media-generation-v2-gaza-0-812f5d6d-8ec2-4477-aef2-649e86b3a36d.webp"),
-    "microsoft": load("media-generation-v2-microsoft-0-a597afdd-fc57-4a3c-af31-2bdc197e2cbe.webp"),
-    "hormuz": load("media-generation-v2-hormuz-0-4d847e79-d53f-4d0b-b3ea-dde414db2824.webp"),
-    "ukraine": load("media-generation-v2-ukraine-0-6de85018-b15c-49d4-aa7b-6c87c38fc5f2.webp"),
-    "map": load("media-generation-v2-map-0-93156f93-82b2-458f-9870-d18fbe3549f5.webp"),
-}
-
-SECONDARIES = [
-    ("gaza", "GAZA HOSPITAL STRUCK", "Six killed in overnight strike"),
-    ("microsoft", "MICROSOFT MAIL & TEAMS DOWN", "Outage hits 74 countries"),
-    ("hormuz", "IRAN CLAIMS TANKER HIT BY MINE", "US denies radar strike claim"),
-    ("ukraine", "EUROPE TO JOIN UKRAINE TALKS", "Biggest prisoner swap planned"),
-]
-
-M = 36
-W = 1024 - 2 * M  # 952
+def col(i):
+    return i * (CELL_W + GUT)
 
 
-def masthead(d, y=28, size=44, date_right=None):
-    f = font(SERIF_B, size)
-    d.text((M, y), "THE WORLD TODAY", font=f, fill=NAVY)
-    if date_right:
-        f2 = font(SANS_B, 18)
-        t = date_right
-        d.text((1024 - M - d.textlength(t, font=f2), y + 14), t, font=f2, fill=VERMILION)
-    return y + size + 12
+def row(i):
+    return HEADER_H + 3 + i * (CELL_H + GUT)
 
 
-# ---------------------------------------------------------------- DRAFT A: cover
-def draft_a():
-    im = Image.new("RGB", (1024, 1024), IVORY)
-    d = ImageDraw.Draw(im)
-    y = masthead(d, date_right="13 NOV 2026")
-    hline(d, M, 1024 - M, y, NAVY, 2)
-    y += 10
-    f = font(SANS_B, 15)
-    t = "FRIDAY  •  WORLD NEWS"
-    d.text(((1024 - d.textlength(t, font=f)) / 2, y), t, font=f, fill=SLATE)
-    y += 28
-    # Lead headline
-    f = font(SERIF_B, 64)
-    t = "NVIDIA CEO RESIGNS"
-    d.text(((1024 - d.textlength(t, font=f)) / 2, y), t, font=f, fill=NAVY)
-    y += 76
-    f = font(SANS, 22)
-    t = "Shares plunge as much as 16% — Kress takes over"
-    d.text(((1024 - d.textlength(t, font=f)) / 2, y), t, font=f, fill=SLATE)
-    y += 36
-    # Lead image 952 x 420
-    im.paste(cover(IMG["nvidia"], W, 420, focus=(0.5, 0.45)), (M, y))
-    y += 420 + 14
-    hline(d, M, 1024 - M, y, VERMILION, 3)
-    y += 12
-    f = font(SANS_B, 15)
-    t = "TODAY'S OTHER DEVELOPMENTS"
-    d.text(((1024 - d.textlength(t, font=f)) / 2, y), t, font=f, fill=NAVY)
-    y += 28
-    # Secondary row: 4 panels. Auto-fit ONE headline size so every headline
-    # wraps to at most 2 lines and all sublines share a baseline.
-    pw, gap = 226, 16
-    best = 17
-    for size in (20, 19, 18, 17):
-        fh = font(SERIF_B, size)
-        if all(len(wrap(d, head, fh, pw)) <= 2 for _, head, _ in SECONDARIES):
-            best = size
-            break
-    for i, (key, head, sub) in enumerate(SECONDARIES):
-        x = M + i * (pw + gap)
-        im.paste(cover(IMG[key], pw, 150), (x, y))
-        yy = y + 150 + 8
-        fh = font(SERIF_B, best)
-        lines = wrap(d, head, fh, pw)
-        yy = draw_lines(d, x, yy, lines, fh, NAVY, align="center", width=pw, spacing=2)
-        yy += 2
-        fs = font(SANS, 14)
-        lines = wrap(d, sub, fs, pw)
-        draw_lines(d, x, yy, lines, fs, SLATE, align="center", width=pw, spacing=2)
-    # Footer
-    hline(d, M, 1024 - M, 990, NAVY, 1)
-    f = font(SANS, 13)
-    t = "Sources: Nvidia, AP, Reuters, BBC, Microsoft, US Dept. of Justice"
-    d.text(((1024 - d.textlength(t, font=f)) / 2, 996), t, font=f, fill=SLATE)
-    im.save(os.path.join(OUT, "draft-a-cover.png"))
-    print("draft A saved")
+def build(variant):
+    page = Image.new("RGB", (W, H), (0, 0, 0))
+    draw = ImageDraw.Draw(page)
+    if variant == "a":
+        # lead-dominant grid (brief layout): lead 3x2, 2x 1x1, 4x 2x1, 2x 2x2
+        draw_top_panel(page, draw, col(0), row(0), 3 * CELL_W + 2 * GUT,
+                       2 * CELL_H + GUT, "nvidia", 205, 44, 15)
+        draw_top_panel(page, draw, col(3), row(0), CELL_W, CELL_H,
+                       "microsoft", 92, 20)
+        draw_top_panel(page, draw, col(3), row(1), CELL_W, CELL_H,
+                       "hormuz", 92, 20)
+        draw_side_panel(page, draw, col(0), row(2), 2 * CELL_W + GUT, CELL_H,
+                        "gaza", 200, 24)
+        draw_side_panel(page, draw, col(2), row(2), 2 * CELL_W + GUT, CELL_H,
+                        "kyiv", 200, 24)
+        draw_side_panel(page, draw, col(0), row(3), 2 * CELL_W + GUT, CELL_H,
+                        "euai", 200, 24)
+        draw_side_panel(page, draw, col(2), row(3), 2 * CELL_W + GUT, CELL_H,
+                        "merz", 200, 24)
+        draw_top_panel(page, draw, col(0), row(4), 2 * CELL_W + GUT,
+                       2 * CELL_H + GUT, "pope", 205, 34, 15)
+        draw_top_panel(page, draw, col(2), row(4), 2 * CELL_W + GUT,
+                       2 * CELL_H + GUT, "iaea", 205, 34, 15)
+    elif variant == "b":
+        # balanced mosaic: lead 2x2, 2x 1x1, 5x 2x1, pope full-width band
+        draw_top_panel(page, draw, col(0), row(0), 2 * CELL_W + GUT,
+                       2 * CELL_H + GUT, "nvidia", 205, 40, 15)
+        draw_top_panel(page, draw, col(2), row(0), CELL_W, CELL_H,
+                       "microsoft", 92, 20)
+        draw_top_panel(page, draw, col(3), row(0), CELL_W, CELL_H,
+                       "hormuz", 92, 20)
+        draw_side_panel(page, draw, col(2), row(1), 2 * CELL_W + GUT, CELL_H,
+                        "gaza", 200, 24)
+        draw_side_panel(page, draw, col(0), row(2), 2 * CELL_W + GUT, CELL_H,
+                        "kyiv", 200, 24)
+        draw_side_panel(page, draw, col(2), row(2), 2 * CELL_W + GUT, CELL_H,
+                        "euai", 200, 24)
+        draw_side_panel(page, draw, col(0), row(3), 2 * CELL_W + GUT, CELL_H,
+                        "merz", 200, 24)
+        draw_side_panel(page, draw, col(2), row(3), 2 * CELL_W + GUT, CELL_H,
+                        "iaea", 200, 24)
+        draw_band_panel(page, draw, col(0), row(4), 4 * CELL_W + 3 * GUT,
+                        2 * CELL_H + GUT, "pope", 640, 40, 16)
+    elif variant == "c":
+        # reduced story, larger text: 7 stories, lead 3x2, 2x 1x1, 4x 2x2
+        draw_top_panel(page, draw, col(0), row(0), 3 * CELL_W + 2 * GUT,
+                       2 * CELL_H + GUT, "nvidia", 205, 44, 15)
+        draw_top_panel(page, draw, col(3), row(0), CELL_W, CELL_H,
+                       "microsoft", 92, 20)
+        draw_top_panel(page, draw, col(3), row(1), CELL_W, CELL_H,
+                       "hormuz", 92, 20)
+        draw_top_panel(page, draw, col(0), row(2), 2 * CELL_W + GUT,
+                       2 * CELL_H + GUT, "gaza", 205, 36, 15)
+        draw_top_panel(page, draw, col(2), row(2), 2 * CELL_W + GUT,
+                       2 * CELL_H + GUT, "kyiv", 205, 36, 15)
+        draw_top_panel(page, draw, col(0), row(4), 2 * CELL_W + GUT,
+                       2 * CELL_H + GUT, "pope", 205, 34, 15)
+        draw_top_panel(page, draw, col(2), row(4), 2 * CELL_W + GUT,
+                       2 * CELL_H + GUT, "iaea", 205, 34, 15)
+    else:
+        raise ValueError("unknown variant " + variant)
+    draw_header_footer(draw)
+    return page
 
 
-# ---------------------------------------------------------------- DRAFT B: bands
-def draft_b():
-    im = Image.new("RGB", (1024, 1024), IVORY)
-    d = ImageDraw.Draw(im)
-    y = masthead(d, date_right="13 NOV 2026")
-    hline(d, M, 1024 - M, y, VERMILION, 3)
-    y += 14
-    # Lead band (300 tall): text left, image right
-    band_y = y
-    tx = M
-    tw = 500
-    num_badge(d, tx + 14, band_y + 16, 1, r=14)
-    fh = font(SERIF_B, 52)
-    lines = wrap(d, "NVIDIA CEO RESIGNS", fh, tw)
-    yy = draw_lines(d, tx, band_y + 40, lines, fh, NAVY, spacing=2)
-    yy += 6
-    fs = font(SANS, 20)
-    lines = wrap(d, "Shares plunge as much as 16% — Kress takes over", fs, tw)
-    yy = draw_lines(d, tx, yy, lines, fs, SLATE, spacing=4)
-    yy += 4
-    fs2 = font(SANS, 20)
-    lines = wrap(d, "Chip stocks slide worldwide; successor search begins", fs2, tw)
-    draw_lines(d, tx, yy, lines, fs2, SLATE, spacing=4)
-    im.paste(cover(IMG["nvidia"], 428, 300, focus=(0.5, 0.45)), (1024 - M - 428, band_y))
-    y = band_y + 300 + 16
-    hline(d, M, 1024 - M, y, NAVY, 2)
-    y += 12
-    # 4 secondary bands, 132 tall each
-    for i, (key, head, sub) in enumerate(SECONDARIES):
-        by = y + i * 140
-        num_badge(d, M + 14, by + 60, i + 2, r=14)
-        im.paste(cover(IMG[key], 180, 120), (M + 42, by))
-        fh = font(SERIF_B, 26)
-        d.text((M + 238, by + 18), head, font=fh, fill=NAVY)
-        fs = font(SANS, 18)
-        d.text((M + 238, by + 62), sub, font=fs, fill=SLATE)
-        if i < 3:
-            hline(d, M, 1024 - M, by + 132, NAVY, 1)
-    hline(d, M, 1024 - M, 990, NAVY, 1)
-    f = font(SANS, 13)
-    t = "Sources: Nvidia, AP, Reuters, BBC, Microsoft, US Dept. of Justice"
-    d.text(((1024 - d.textlength(t, font=f)) / 2, 996), t, font=f, fill=SLATE)
-    im.save(os.path.join(OUT, "draft-b-bands.png"))
-    print("draft B saved")
-
-
-# ---------------------------------------------------------------- DRAFT C: map
-def draft_c():
-    im = Image.new("RGB", (1024, 1024), IVORY)
-    d = ImageDraw.Draw(im)
-    y = masthead(d, size=36, date_right="13 NOV 2026")
-    hline(d, M, 1024 - M, y, NAVY, 2)
-    y += 10
-    f = font(SANS_B, 15)
-    t = "WHERE IT HAPPENED"
-    d.text(((1024 - d.textlength(t, font=f)) / 2, y), t, font=f, fill=NAVY)
-    y += 26
-    # Map: crop top 75% of the 1920x1280 asset (drops Antarctica), place 952x400
-    m = IMG["map"].crop((0, 100, 1920, 900)).resize((W, 400), Image.LANCZOS)
-    im.paste(m, (M, y))
-    map_y0 = y
-
-    def to_map(lon, lat):
-        # rough linear mapping on the ORIGINAL 1920x1280 frame, then to placed crop
-        x0 = 50 + (lon + 180) * (1830 / 360)
-        y0 = 130 + (75 - lat) * (1100 / 135)
-        x = M + (x0 / 1920) * W
-        yy = map_y0 + ((y0 - 100) / 800) * 400
-        return x, yy
-
-    markers = [
-        (1, -121.95, 37.35),   # Santa Clara (Nvidia)
-        (2, 34.45, 31.5),      # Gaza
-        (3, 56.25, 26.6),      # Hormuz
-        (4, -6.26, 53.35),     # Dublin (Ukraine talks)
-    ]
-    for n, lon, lat in markers:
-        x, yy = to_map(lon, lat)
-        num_badge(d, x, yy, n, r=15)
-    y = map_y0 + 400 + 16
-    hline(d, M, 1024 - M, y, VERMILION, 3)
-    y += 12
-    rows = [
-        (1, "NVIDIA CEO RESIGNS", "Shares plunge as much as 16% — Kress takes over"),
-        (2, "GAZA HOSPITAL STRUCK", "Six killed in overnight strike"),
-        (3, "IRAN CLAIMS TANKER HIT BY MINE", "US denies radar strike claim"),
-        (4, "EUROPE TO JOIN UKRAINE TALKS", "Biggest prisoner swap planned"),
-        (5, "MICROSOFT MAIL & TEAMS DOWN", "Outage hits 74 countries — worldwide"),
-    ]
-    for n, head, sub in rows:
-        num_badge(d, M + 14, y + 22, n, r=14)
-        fh = font(SERIF_B, 24)
-        d.text((M + 42, y), head, font=fh, fill=NAVY)
-        fs = font(SANS, 17)
-        d.text((M + 42, y + 34), sub, font=fs, fill=SLATE)
-        y += 66
-        if n < 5:
-            hline(d, M, 1024 - M, y - 8, NAVY, 1)
-    hline(d, M, 1024 - M, 990, NAVY, 1)
-    f = font(SANS, 13)
-    t = "Sources: Nvidia, AP, Reuters, BBC, Microsoft, US Dept. of Justice"
-    d.text(((1024 - d.textlength(t, font=f)) / 2, 996), t, font=f, fill=SLATE)
-    im.save(os.path.join(OUT, "draft-c-map.png"))
-    print("draft C saved")
+def main():
+    which = sys.argv[1] if len(sys.argv) > 1 else "all"
+    variants = ["a", "b", "c"] if which == "all" else [which]
+    os.makedirs(DRAFTS, exist_ok=True)
+    for v in variants:
+        page = build(v)
+        out = os.path.join(DRAFTS, "draft-%s.png" % v)
+        page.save(out, format="PNG")
+        page.resize((512, 512), Image.LANCZOS).save(
+            os.path.join(DRAFTS, "draft-%s-512.png" % v), format="PNG")
+        print("wrote", out, page.size)
 
 
 if __name__ == "__main__":
-    draft_a()
-    draft_b()
-    draft_c()
+    main()
